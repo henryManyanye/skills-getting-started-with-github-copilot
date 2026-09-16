@@ -19,12 +19,32 @@ document.addEventListener("DOMContentLoaded", () => {
         activityCard.className = "activity-card";
 
         const spotsLeft = details.max_participants - details.participants.length;
+        const participants = details.participants.length
+          ? `<ul>${details.participants
+              .map(
+                (participant) => `
+                  <li>
+                    <span>${escapeHtml(participant)}</span>
+                    <button class="remove-participant" type="button"
+                      data-activity="${encodeURIComponent(name)}"
+                      data-participant="${encodeURIComponent(participant)}"
+                      aria-label="Remove ${escapeHtml(participant)}">
+                      &#128465;
+                    </button>
+                  </li>`
+              )
+              .join("")}</ul>`
+          : "<p class=\"no-participants\">No participants yet</p>";
 
         activityCard.innerHTML = `
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <div class="participants">
+            <h5>Participants</h5>
+            ${participants}
+          </div>
         `;
 
         activitiesList.appendChild(activityCard);
@@ -40,6 +60,37 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Error fetching activities:", error);
     }
   }
+
+  function escapeHtml(value) {
+    const element = document.createElement("div");
+    element.textContent = value;
+    return element.innerHTML;
+  }
+
+  activitiesList.addEventListener("click", async (event) => {
+    const removeButton = event.target.closest(".remove-participant");
+    if (!removeButton) return;
+
+    try {
+      const activity = removeButton.dataset.activity;
+      const participant = removeButton.dataset.participant;
+      const response = await fetch(
+        `/activities/${activity}/participants/${participant}`,
+        { method: "DELETE" }
+      );
+
+      if (!response.ok) {
+        throw new Error("Unable to remove participant");
+      }
+
+      await fetchActivities();
+    } catch (error) {
+      messageDiv.textContent = "Failed to remove participant. Please try again.";
+      messageDiv.className = "error";
+      messageDiv.classList.remove("hidden");
+      console.error("Error removing participant:", error);
+    }
+  });
 
   // Handle form submission
   signupForm.addEventListener("submit", async (event) => {
